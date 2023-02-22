@@ -49,80 +49,80 @@ func NewClusterImpl() *ClusterImpl {
 }
 
 func (c *ClusterImpl) StartInterNodeCommunication() {
-	mlog.Error("StartInterNodeCommunication")
+	mlog.Error("CLUSTER: StartInterNodeCommunication")
 }
 
 func (c *ClusterImpl) StopInterNodeCommunication() {
-	mlog.Error("StopInterNodeCommunication")
+	mlog.Error("CLUSTER: StopInterNodeCommunication")
 }
 
 func (c *ClusterImpl) RegisterClusterMessageHandler(event model.ClusterEvent, crm ClusterMessageHandler) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 	c.clusterMessageHandlers[event] = append(c.clusterMessageHandlers[event], crm)
-	mlog.Error("RegisterClusterMessageHandler")
+	mlog.Error("CLUSTER: RegisterClusterMessageHandler")
 }
 
 func (c *ClusterImpl) GetClusterId() string {
-	mlog.Error("GetClusterId")
+	mlog.Error("CLUSTER: GetClusterId")
 	return "0"
 }
 
 func (c *ClusterImpl) IsLeader() bool {
-	mlog.Error("IsLeader")
+	mlog.Error("CLUSTER: IsLeader")
 	return true
 }
 
 func (c *ClusterImpl) HealthScore() int {
-	mlog.Error("HealthScore")
+	mlog.Error("CLUSTER: HealthScore")
 	return 0
 }
 
 func (c *ClusterImpl) GetMyClusterInfo() *model.ClusterInfo {
-	mlog.Error("GetMyClusterInfo")
+	mlog.Error("CLUSTER: GetMyClusterInfo")
 	return &model.ClusterInfo{}
 }
 
 func (c *ClusterImpl) GetClusterInfos() []*model.ClusterInfo {
-	mlog.Error("GetClusterInfos")
+	mlog.Error("CLUSTER: GetClusterInfos")
 	return []*model.ClusterInfo{{}}
 }
 
 func (c *ClusterImpl) SendClusterMessage(msg *model.ClusterMessage) {
 	b, _ := json.Marshal(*msg)
-	mlog.Error(fmt.Sprintf("SendClusterMessage %s", string(b)))
+	mlog.Error(fmt.Sprintf("CLUSTER: SendClusterMessage %s", string(b)))
 }
 
 func (c *ClusterImpl) SendClusterMessageToNode(nodeID string, msg *model.ClusterMessage) error {
-	mlog.Error("SendClusterMessageToNode")
+	mlog.Error("CLUSTER: SendClusterMessageToNode")
 	return nil
 }
 
 func (c *ClusterImpl) NotifyMsg(buf []byte) {
-	mlog.Error("NotifyMsg")
+	mlog.Error("CLUSTER: NotifyMsg")
 }
 
 func (c *ClusterImpl) GetClusterStats() ([]*model.ClusterStats, *model.AppError) {
-	mlog.Error("GetClusterStats")
+	mlog.Error("CLUSTER: GetClusterStats")
 	return []*model.ClusterStats{}, nil
 }
 
 func (c *ClusterImpl) GetLogs(page, perPage int) ([]string, *model.AppError) {
-	mlog.Error("GetLogs")
+	mlog.Error("CLUSTER: GetLogs")
 	return []string{}, nil
 }
 
 func (c *ClusterImpl) QueryLogs(page, perPage int) (map[string][]string, *model.AppError) {
-	mlog.Error("QueryLogs")
+	mlog.Error("CLUSTER: QueryLogs")
 	return make(map[string][]string), nil
 }
 
 func (c *ClusterImpl) GetPluginStatuses() (model.PluginStatuses, *model.AppError) {
-	mlog.Error("GetPluginStatuses")
+	mlog.Error("CLUSTER: GetPluginStatuses")
 	return model.PluginStatuses{}, nil
 }
 
 func (c *ClusterImpl) ConfigChanged(previousConfig *model.Config, newConfig *model.Config, sendToOtherServer bool) *model.AppError {
-	mlog.Error("ConfigChanged")
+	mlog.Error("CLUSTER: ConfigChanged")
 	return nil
 }
