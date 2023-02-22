@@ -4,6 +4,10 @@
 package einterfaces
 
 import (
+	"encoding/json"
+	"fmt"
+	"sync"
+
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/mattermost/mattermost-server/v6/shared/mlog"
 )
@@ -33,10 +37,15 @@ type ClusterInterface interface {
 }
 
 type ClusterImpl struct {
+	mux                    sync.RWMutex
+	clusterMessageHandlers map[model.ClusterEvent][]ClusterMessageHandler
 }
 
 func NewClusterImpl() *ClusterImpl {
-	return &ClusterImpl{}
+	clusterImpl := &ClusterImpl{
+		clusterMessageHandlers: make(map[model.ClusterEvent][]ClusterMessageHandler),
+	}
+	return clusterImpl
 }
 
 func (c *ClusterImpl) StartInterNodeCommunication() {
@@ -48,6 +57,9 @@ func (c *ClusterImpl) StopInterNodeCommunication() {
 }
 
 func (c *ClusterImpl) RegisterClusterMessageHandler(event model.ClusterEvent, crm ClusterMessageHandler) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	c.clusterMessageHandlers[event] = append(c.clusterMessageHandlers[event], crm)
 	mlog.Error("RegisterClusterMessageHandler")
 }
 
@@ -77,7 +89,8 @@ func (c *ClusterImpl) GetClusterInfos() []*model.ClusterInfo {
 }
 
 func (c *ClusterImpl) SendClusterMessage(msg *model.ClusterMessage) {
-	mlog.Error("SendClusterMessage")
+	b, _ := json.Marshal(*msg)
+	mlog.Error(fmt.Sprintf("SendClusterMessage %s", string(b)))
 }
 
 func (c *ClusterImpl) SendClusterMessageToNode(nodeID string, msg *model.ClusterMessage) error {
