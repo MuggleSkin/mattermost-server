@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,7 +18,19 @@ import (
 )
 
 func nodeId(node *memberlist.Node) string {
-	return fmt.Sprintf("%s (%s:%d)", node.Name, node.Addr.To4().String(), node.Port)
+	node.FullAddress()
+	return fmt.Sprintf("%s (%s:%d)", node.Name, node.Addr.String(), node.Port)
+}
+
+func nodeInfo(node *memberlist.Node, protocol uint8) *model.ClusterInfo {
+	hostname, _ := net.LookupAddr(node.Addr.String())
+	return &model.ClusterInfo{
+		Id:         nodeId(node),
+		Version:    fmt.Sprintf("%v", protocol),
+		ConfigHash: "0", // TODO
+		IPAddress:  node.Addr.String(),
+		Hostname:   strings.Join(hostname, "."),
+	}
 }
 
 type ClusterMessageHandler func(msg *model.ClusterMessage)
@@ -168,12 +182,30 @@ func (c *ClusterImpl) HealthScore() int {
 
 func (c *ClusterImpl) GetMyClusterInfo() *model.ClusterInfo {
 	mlog.Info("CLUSTER: GetMyClusterInfo")
-	return &model.ClusterInfo{}
+
+	if c.list == nil {
+		mlog.Info("CLUSTER: GetMyClusterInfo no cluster")
+		return &model.ClusterInfo{}
+	}
+
+	return nodeInfo(c.list.LocalNode(), c.list.ProtocolVersion())
 }
 
 func (c *ClusterImpl) GetClusterInfos() []*model.ClusterInfo {
 	mlog.Info("CLUSTER: GetClusterInfos")
-	return []*model.ClusterInfo{{}}
+
+	if c.list == nil {
+		mlog.Info("CLUSTER: GetClusterInfos no cluster")
+		return []*model.ClusterInfo{}
+	}
+
+	cluster := []*model.ClusterInfo{}
+
+	for _, node := range c.list.Members() {
+		cluster = append(cluster, nodeInfo(node, c.list.ProtocolVersion()))
+	}
+
+	return cluster
 }
 
 func (c *ClusterImpl) SendClusterMessage(msg *model.ClusterMessage) {
