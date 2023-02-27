@@ -47,7 +47,7 @@ type GetPeersImpl struct {
 }
 
 func (peers *GetPeersImpl) GetPeers() []string {
-	return []string{}
+	return nil
 }
 
 func NewPeers() *GetPeersImpl {
@@ -163,6 +163,12 @@ func (c *ClusterImpl) StartInterNodeCommunication() {
 	c.list = list
 
 	mlog.Info(fmt.Sprintf("CLUSTER: local node %s", nodeId(c.list.LocalNode())))
+
+	peers := c.peers.GetPeers()
+	if peers == nil {
+		mlog.Info("CLUSTER: no peers")
+		return
+	}
 
 	if reached, err := list.Join(c.peers.GetPeers()); err != nil {
 		if err != nil {
