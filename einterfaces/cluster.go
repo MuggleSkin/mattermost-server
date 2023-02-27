@@ -47,7 +47,6 @@ type GetPeersImpl struct {
 }
 
 func (peers *GetPeersImpl) GetPeers() []string {
-	// return nil
 	return []string{"0.0.0.0:7950"}
 }
 
@@ -93,6 +92,7 @@ func (d *EventDelegateImpl) NotifyUpdate(node *memberlist.Node) {
 }
 
 type ClusterImpl struct {
+	config                 *model.Config
 	mux                    sync.RWMutex
 	clusterMessageHandlers map[model.ClusterEvent][]ClusterMessageHandler
 	// memberlist
@@ -142,8 +142,9 @@ func (c *ClusterImpl) MergeRemoteState(buf []byte, join bool) {
 	mlog.Info("CLUSTER: MergeRemoteState")
 }
 
-func NewClusterImpl() *ClusterImpl {
+func NewClusterImpl(config *model.Config) *ClusterImpl {
 	clusterImpl := &ClusterImpl{
+		config:                 config,
 		clusterMessageHandlers: make(map[model.ClusterEvent][]ClusterMessageHandler),
 		peers:                  NewPeers(),
 	}
@@ -156,10 +157,15 @@ func (c *ClusterImpl) StartInterNodeCommunication() {
 	c.conf = memberlist.DefaultLocalConfig()
 	c.conf.Delegate = c
 	c.conf.Events = &EventDelegateImpl{}
-	c.conf.Name = "Follower"
-	c.conf.BindPort = 7955        // TODO: get from global config
-	c.conf.BindAddr = "127.0.0.1" // TODO: get from global config
+
+	if *c.config.ClusterSettings.OverrideHostname != "" {
+		c.conf.Name = *c.config.ClusterSettings.OverrideHostname
+	}
+
+	c.conf.BindPort = *c.config.ClusterSettings.GossipPort
 	c.conf.AdvertisePort = c.conf.BindPort
+
+	c.conf.EnableCompression = *c.config.ClusterSettings.EnableGossipCompression
 
 	list, err := memberlist.Create(c.conf)
 	if err != nil {

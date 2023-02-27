@@ -435,9 +435,9 @@
         "IosAppDownloadLink": "https://mattermost.com/mattermost-ios-app/"
     },
     "ClusterSettings": {
-        "Enable": false,
+        "Enable": true,
         "ClusterName": "",
-        "OverrideHostname": "",
+        "OverrideHostname": "Leader",
         "NetworkInterface": "",
         "BindAddress": "",
         "AdvertiseAddress": "",
@@ -445,7 +445,7 @@
         "EnableGossipCompression": true,
         "EnableExperimentalGossipEncryption": false,
         "ReadOnlyConfig": true,
-        "GossipPort": 8074,
+        "GossipPort": 7950,
         "StreamingPort": 8075,
         "MaxIdleConns": 100,
         "MaxIdleConnsPerHost": 128,
