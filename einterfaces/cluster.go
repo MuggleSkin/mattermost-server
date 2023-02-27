@@ -17,6 +17,10 @@ import (
 	"github.com/mattermost/mattermost-server/v6/shared/mlog"
 )
 
+var _ memberlist.EventDelegate = (*EventDelegateImpl)(nil)
+var _ memberlist.Delegate = (*ClusterImpl)(nil)
+var _ ClusterInterface = (*ClusterImpl)(nil)
+
 func nodeId(node *memberlist.Node) string {
 	node.FullAddress()
 	return fmt.Sprintf("%s (%s:%d)", node.Name, node.Addr.String(), node.Port)
@@ -78,9 +82,11 @@ type EventDelegateImpl struct {
 func (d *EventDelegateImpl) NotifyJoin(node *memberlist.Node) {
 	mlog.Info(fmt.Sprintf("CLUSTER: NotifyJoin %s", nodeId(node)))
 }
+
 func (d *EventDelegateImpl) NotifyLeave(node *memberlist.Node) {
 	mlog.Info(fmt.Sprintf("CLUSTER: NotifyLeave %s", nodeId(node)))
 }
+
 func (d *EventDelegateImpl) NotifyUpdate(node *memberlist.Node) {
 	mlog.Info(fmt.Sprintf("CLUSTER: NotifyUpdate %s", nodeId(node)))
 }
@@ -92,6 +98,45 @@ type ClusterImpl struct {
 	peers GetPeersInterface
 	conf  *memberlist.Config
 	list  *memberlist.Memberlist
+}
+
+func (c *ClusterImpl) NotifyMsg(msg []byte) {
+	mlog.Info("CLUSTER: NotifyMsg")
+
+	c.mux.RLock()
+	defer c.mux.RUnlock()
+
+	clusterMsg := model.ClusterMessage{}
+	err := json.Unmarshal([]byte(msg), &clusterMsg)
+	if err != nil {
+		mlog.Info(fmt.Sprintf("CLUSTER: NotifyMsg json.Unmarshal error %s", err))
+		return
+	}
+
+	for _, handler := range c.clusterMessageHandlers[clusterMsg.Event] {
+		go func(h ClusterMessageHandler) {
+			h(&clusterMsg)
+		}(handler)
+	}
+}
+
+func (c *ClusterImpl) NodeMeta(limit int) []byte {
+	mlog.Info("CLUSTER: NodeMeta")
+	return []byte("")
+}
+
+func (c *ClusterImpl) LocalState(join bool) []byte {
+	mlog.Info("CLUSTER: LocalState")
+	return []byte("")
+}
+
+func (c *ClusterImpl) GetBroadcasts(overhead, limit int) [][]byte {
+	mlog.Info("CLUSTER: GetBroadcasts")
+	return nil
+}
+
+func (c *ClusterImpl) MergeRemoteState(buf []byte, join bool) {
+	mlog.Info("CLUSTER: MergeRemoteState")
 }
 
 func NewClusterImpl() *ClusterImpl {
@@ -208,6 +253,22 @@ func (c *ClusterImpl) GetClusterInfos() []*model.ClusterInfo {
 	return cluster
 }
 
+func (c *ClusterImpl) sendMessage(node *memberlist.Node, sendType string, bytes []byte) {
+	var err error = nil
+
+	if sendType == model.ClusterSendReliable {
+		err = c.list.SendReliable(node, bytes)
+	} else {
+		err = c.list.SendBestEffort(node, bytes)
+	}
+
+	if err != nil {
+		mlog.Info(fmt.Sprintf("CLUSTER: sendMessage %s to %s error %s", string(bytes), nodeId(node), err))
+	} else {
+		mlog.Info(fmt.Sprintf("CLUSTER: sendMessage %s to %s", string(bytes), nodeId(node)))
+	}
+}
+
 func (c *ClusterImpl) SendClusterMessage(msg *model.ClusterMessage) {
 	mlog.Info("CLUSTER: SendClusterMessage")
 
@@ -218,28 +279,17 @@ func (c *ClusterImpl) SendClusterMessage(msg *model.ClusterMessage) {
 
 	bytes, err := json.Marshal(*msg)
 	if err != nil {
-		mlog.Info(fmt.Sprintf("CLUSTER: SendClusterMessage error %s", err))
+		mlog.Info(fmt.Sprintf("CLUSTER: SendClusterMessage json.Marshal error %s", err))
 		return
 	}
 
 	for _, node := range c.list.Members() {
-
 		if c.GetClusterId() == nodeId(node) {
 			continue
 		}
-
-		if msg.SendType == model.ClusterSendReliable {
-			err = c.list.SendReliable(node, bytes)
-		} else {
-			err = c.list.SendBestEffort(node, bytes)
-		}
-
-		if err != nil {
-			mlog.Info(fmt.Sprintf("CLUSTER: SendClusterMessage %s to %s error %s", string(bytes), nodeId(node), err))
-		} else {
-			mlog.Info(fmt.Sprintf("CLUSTER: SendClusterMessage %s to %s", string(bytes), nodeId(node)))
-		}
-
+		go func(n *memberlist.Node) {
+			c.sendMessage(n, msg.SendType, bytes)
+		}(node)
 	}
 }
 
@@ -253,35 +303,19 @@ func (c *ClusterImpl) SendClusterMessageToNode(nodeID string, msg *model.Cluster
 
 	bytes, err := json.Marshal(*msg)
 	if err != nil {
-		mlog.Info(fmt.Sprintf("CLUSTER: SendClusterMessage error %s", err))
+		mlog.Info(fmt.Sprintf("CLUSTER: SendClusterMessageToNode json.Marshal error %s", err))
 		return err
 	}
 
 	for _, node := range c.list.Members() {
-
 		if nodeId(node) != nodeID {
 			continue
 		}
-
-		if msg.SendType == model.ClusterSendReliable {
-			err = c.list.SendReliable(node, bytes)
-		} else {
-			err = c.list.SendBestEffort(node, bytes)
-		}
-
-		if err != nil {
-			mlog.Info(fmt.Sprintf("CLUSTER: SendClusterMessage %s to %s error %s", string(bytes), nodeId(node), err))
-			return err
-		} else {
-			mlog.Info(fmt.Sprintf("CLUSTER: SendClusterMessage %s to %s", string(bytes), nodeId(node)))
-		}
-
+		go func(n *memberlist.Node) {
+			c.sendMessage(n, msg.SendType, bytes)
+		}(node)
 	}
 	return nil
-}
-
-func (c *ClusterImpl) NotifyMsg(buf []byte) {
-	mlog.Info("CLUSTER: NotifyMsg")
 }
 
 func (c *ClusterImpl) GetClusterStats() ([]*model.ClusterStats, *model.AppError) {
