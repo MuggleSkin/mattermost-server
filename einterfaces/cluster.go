@@ -230,8 +230,19 @@ func (c *ClusterImpl) GetClusterId() string {
 }
 
 func (c *ClusterImpl) IsLeader() bool {
+	// https://en.wikipedia.org/wiki/Bully_algorithm
 	mlog.Info("CLUSTER: IsLeader")
-	return true
+
+	var maxNode *string
+
+	for _, node := range c.list.Members() {
+		curNode := nodeId(node)
+		if maxNode == nil || *maxNode < curNode {
+			maxNode = &curNode
+		}
+	}
+
+	return c.GetClusterId() == *maxNode
 }
 
 func (c *ClusterImpl) HealthScore() int {
