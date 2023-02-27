@@ -152,7 +152,8 @@ func (c *ClusterImpl) StartInterNodeCommunication() {
 
 	c.conf = memberlist.DefaultLocalConfig()
 	c.conf.Events = &EventDelegateImpl{}
-	// conf.Name = "node1"
+	c.conf.BindPort = 7947 // TODO: get from global config
+	c.conf.AdvertisePort = c.conf.BindPort
 
 	list, err := memberlist.Create(c.conf)
 	if err != nil {
