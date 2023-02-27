@@ -47,7 +47,8 @@ type GetPeersImpl struct {
 }
 
 func (peers *GetPeersImpl) GetPeers() []string {
-	return nil
+	// return nil
+	return []string{"0.0.0.0:7950"}
 }
 
 func NewPeers() *GetPeersImpl {
@@ -113,6 +114,8 @@ func (c *ClusterImpl) NotifyMsg(msg []byte) {
 		return
 	}
 
+	mlog.Info(fmt.Sprintf("CLUSTER: NotifyMsg %s", string(msg)))
+
 	for _, handler := range c.clusterMessageHandlers[clusterMsg.Event] {
 		go func(h ClusterMessageHandler) {
 			h(&clusterMsg)
@@ -151,8 +154,11 @@ func (c *ClusterImpl) StartInterNodeCommunication() {
 	mlog.Info("CLUSTER: StartInterNodeCommunication")
 
 	c.conf = memberlist.DefaultLocalConfig()
+	c.conf.Delegate = c
 	c.conf.Events = &EventDelegateImpl{}
-	c.conf.BindPort = 7947 // TODO: get from global config
+	c.conf.Name = "Follower"
+	c.conf.BindPort = 7955        // TODO: get from global config
+	c.conf.BindAddr = "127.0.0.1" // TODO: get from global config
 	c.conf.AdvertisePort = c.conf.BindPort
 
 	list, err := memberlist.Create(c.conf)
