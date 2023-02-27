@@ -113,6 +113,7 @@ type SqlStoreStores struct {
 	postPriority         store.PostPriorityStore
 	postAcknowledgement  store.PostAcknowledgementStore
 	trueUpReview         store.TrueUpReviewStore
+	leader               store.LeaderStore
 }
 
 type SqlStore struct {
@@ -222,6 +223,7 @@ func New(settings model.SqlSettings, metrics einterfaces.MetricsInterface) *SqlS
 	store.stores.postPriority = newSqlPostPriorityStore(store)
 	store.stores.postAcknowledgement = newSqlPostAcknowledgementStore(store)
 	store.stores.trueUpReview = newSqlTrueUpReviewStore(store)
+	store.stores.leader = newSqlLeaderStore(store, metrics)
 
 	store.stores.preference.(*SqlPreferenceStore).deleteUnusedFeatures()
 
@@ -988,6 +990,10 @@ func (ss *SqlStore) PostAcknowledgement() store.PostAcknowledgementStore {
 
 func (ss *SqlStore) TrueUpReview() store.TrueUpReviewStore {
 	return ss.stores.trueUpReview
+}
+
+func (ss *SqlStore) Leader() store.LeaderStore {
+	return ss.stores.leader
 }
 
 func (ss *SqlStore) DropAllTables() {

@@ -1007,6 +1007,12 @@ type TrueUpReviewStore interface {
 	Update(reviewStatus *model.TrueUpReviewStatus) (*model.TrueUpReviewStatus, error)
 }
 
+type LeaderStore interface {
+	Save(leader *model.Leader) (*model.Leader, error)
+	GetList() ([]*model.Leader, error)
+	Delete(leader *model.Leader) error
+}
+
 // ChannelSearchOpts contains options for searching channels.
 //
 // NotAssociatedToGroup will exclude channels that have associated, active GroupChannels records.

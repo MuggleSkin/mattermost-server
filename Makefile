@@ -604,11 +604,19 @@ validate-go-version: ## Validates the installed version of go against Mattermost
 build-templates: ## Compile all mjml email templates
 	cd $(TEMPLATES_DIR) && $(MAKE) build
 
-run-server: setup-go-work prepackaged-binaries validate-go-version start-docker ## Starts the server.
+run-server: setup-go-work prepackaged-binaries start-docker ## Starts the server.
 	@echo Running mattermost for development
 
 	mkdir -p $(BUILD_WEBAPP_DIR)/dist/files
-	$(GO) run $(GOFLAGS) -ldflags '$(LDFLAGS)' $(PLATFORM_FILES) $(RUN_IN_BACKGROUND)
+	$(GO) version
+	$(GO) run $(GOFLAGS) -ldflags '$(LDFLAGS)' $(PLATFORM_FILES) -c config/leader-config.json
+
+run-server2: setup-go-work prepackaged-binaries start-docker ## Starts the server.
+	@echo Running mattermost for development
+
+	mkdir -p $(BUILD_WEBAPP_DIR)/dist/files
+	$(GO) version
+	$(GO) run $(GOFLAGS) -ldflags '$(LDFLAGS)' $(PLATFORM_FILES) -c config/follower-config.json
 
 debug-server: start-docker ## Compile and start server using delve.
 	mkdir -p $(BUILD_WEBAPP_DIR)/dist/files
