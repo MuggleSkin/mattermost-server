@@ -171,15 +171,20 @@ func (c *ClusterImpl) SendClusterMessage(msg *model.ClusterMessage) {
 		return
 	}
 
-	if msg.SendType == model.ClusterSendReliable {
-		for _, node := range c.list.Members() {
-			err := c.list.SendReliable(node, bytes)
-			if err != nil {
-				mlog.Info(fmt.Sprintf("CLUSTER: SendClusterMessage %s to %s (%s:%d)", string(bytes), node.Name, node.Addr.To4().String(), node.Port))
-			} else {
-				mlog.Info(fmt.Sprintf("CLUSTER: SendClusterMessage error %s to %s (%s:%d)", node.Name, err, node.Addr.To4().String(), node.Port))
-			}
+	for _, node := range c.list.Members() {
+
+		if msg.SendType == model.ClusterSendReliable {
+			err = c.list.SendReliable(node, bytes)
+		} else {
+			err = c.list.SendBestEffort(node, bytes)
 		}
+
+		if err != nil {
+			mlog.Info(fmt.Sprintf("CLUSTER: SendClusterMessage %s to %s (%s:%d)", string(bytes), node.Name, node.Addr.To4().String(), node.Port))
+		} else {
+			mlog.Info(fmt.Sprintf("CLUSTER: SendClusterMessage error %s to %s (%s:%d)", node.Name, err, node.Addr.To4().String(), node.Port))
+		}
+
 	}
 }
 
