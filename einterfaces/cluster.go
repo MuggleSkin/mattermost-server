@@ -6,6 +6,7 @@ package einterfaces
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -144,6 +145,9 @@ func (c *ClusterImpl) IsLeader() bool {
 }
 
 func (c *ClusterImpl) HealthScore() int {
+	if c.list == nil {
+		return math.MaxInt
+	}
 	healthScore := c.list.GetHealthScore()
 	mlog.Info(fmt.Sprintf("CLUSTER: HealthScore %d", healthScore))
 	return healthScore
