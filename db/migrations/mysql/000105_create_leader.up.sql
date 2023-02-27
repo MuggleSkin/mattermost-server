@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS leader (
+    expireat bigint(20) DEFAULT NULL,
+    address VARCHAR(129) DEFAULT NULL,
+	PRIMARY KEY (address),
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

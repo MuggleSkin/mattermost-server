@@ -22,8 +22,7 @@ var _ memberlist.Delegate = (*ClusterImpl)(nil)
 var _ ClusterInterface = (*ClusterImpl)(nil)
 
 func nodeId(node *memberlist.Node) string {
-	node.FullAddress()
-	return fmt.Sprintf("%s (%s:%d)", node.Name, node.Addr.String(), node.Port)
+	return fmt.Sprintf("%s:%d", node.Addr.String(), node.Port)
 }
 
 func nodeInfo(node *memberlist.Node, protocol uint8) *model.ClusterInfo {
