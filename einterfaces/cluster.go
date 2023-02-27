@@ -224,6 +224,10 @@ func (c *ClusterImpl) SendClusterMessage(msg *model.ClusterMessage) {
 
 	for _, node := range c.list.Members() {
 
+		if c.GetClusterId() == nodeId(node) {
+			continue
+		}
+
 		if msg.SendType == model.ClusterSendReliable {
 			err = c.list.SendReliable(node, bytes)
 		} else {
