@@ -15,6 +15,10 @@ import (
 	"github.com/mattermost/mattermost-server/v6/shared/mlog"
 )
 
+func nodeId(node *memberlist.Node) string {
+	return fmt.Sprintf("%s (%s:%d)", node.Name, node.Addr.To4().String(), node.Port)
+}
+
 type ClusterMessageHandler func(msg *model.ClusterMessage)
 
 type GetPeersInterface interface {
@@ -58,13 +62,13 @@ type EventDelegateImpl struct {
 }
 
 func (d *EventDelegateImpl) NotifyJoin(node *memberlist.Node) {
-	mlog.Info(fmt.Sprintf("CLUSTER: NotifyJoin %s(%s:%d)", node.Name, node.Addr.To4().String(), node.Port))
+	mlog.Info(fmt.Sprintf("CLUSTER: NotifyJoin %s", nodeId(node)))
 }
 func (d *EventDelegateImpl) NotifyLeave(node *memberlist.Node) {
-	mlog.Info(fmt.Sprintf("CLUSTER: NotifyLeave %s (%s:%d)", node.Name, node.Addr.To4().String(), node.Port))
+	mlog.Info(fmt.Sprintf("CLUSTER: NotifyLeave %s", nodeId(node)))
 }
 func (d *EventDelegateImpl) NotifyUpdate(node *memberlist.Node) {
-	mlog.Info(fmt.Sprintf("CLUSTER: NotifyUpdate %s (%s:%d)", node.Name, node.Addr.To4().String(), node.Port))
+	mlog.Info(fmt.Sprintf("CLUSTER: NotifyUpdate %s", nodeId(node)))
 }
 
 type ClusterImpl struct {
@@ -99,8 +103,7 @@ func (c *ClusterImpl) StartInterNodeCommunication() {
 
 	c.list = list
 
-	local := list.LocalNode()
-	mlog.Info(fmt.Sprintf("CLUSTER: local node %s:%d", local.Addr.To4().String(), local.Port))
+	mlog.Info(fmt.Sprintf("CLUSTER: local node %s", nodeId(c.list.LocalNode())))
 
 	if reached, err := list.Join(c.peers.GetPeers()); err != nil {
 		if err != nil {
@@ -113,6 +116,11 @@ func (c *ClusterImpl) StartInterNodeCommunication() {
 
 func (c *ClusterImpl) StopInterNodeCommunication() {
 	mlog.Info("CLUSTER: StopInterNodeCommunication")
+
+	if c.list == nil {
+		mlog.Info("CLUSTER: StopInterNodeCommunication no cluster")
+		return
+	}
 
 	const leaveTimeoutSeconds = 60
 
@@ -136,7 +144,11 @@ func (c *ClusterImpl) RegisterClusterMessageHandler(event model.ClusterEvent, cr
 
 func (c *ClusterImpl) GetClusterId() string {
 	mlog.Info("CLUSTER: GetClusterId")
-	return "0"
+	if c.list == nil {
+		mlog.Info("CLUSTER: GetClusterId no cluster")
+		return ""
+	}
+	return nodeId(c.list.LocalNode())
 }
 
 func (c *ClusterImpl) IsLeader() bool {
@@ -146,6 +158,7 @@ func (c *ClusterImpl) IsLeader() bool {
 
 func (c *ClusterImpl) HealthScore() int {
 	if c.list == nil {
+		mlog.Info("CLUSTER: HealthScore no cluster")
 		return math.MaxInt
 	}
 	healthScore := c.list.GetHealthScore()
@@ -164,6 +177,8 @@ func (c *ClusterImpl) GetClusterInfos() []*model.ClusterInfo {
 }
 
 func (c *ClusterImpl) SendClusterMessage(msg *model.ClusterMessage) {
+	mlog.Info("CLUSTER: SendClusterMessage")
+
 	if c.list == nil {
 		mlog.Info("CLUSTER: SendClusterMessage no cluster")
 		return
@@ -184,9 +199,9 @@ func (c *ClusterImpl) SendClusterMessage(msg *model.ClusterMessage) {
 		}
 
 		if err != nil {
-			mlog.Info(fmt.Sprintf("CLUSTER: SendClusterMessage %s to %s (%s:%d)", string(bytes), node.Name, node.Addr.To4().String(), node.Port))
+			mlog.Info(fmt.Sprintf("CLUSTER: SendClusterMessage %s to %s error %s", string(bytes), nodeId(node), err))
 		} else {
-			mlog.Info(fmt.Sprintf("CLUSTER: SendClusterMessage error %s to %s (%s:%d)", node.Name, err, node.Addr.To4().String(), node.Port))
+			mlog.Info(fmt.Sprintf("CLUSTER: SendClusterMessage %s to %s", string(bytes), nodeId(node)))
 		}
 
 	}
@@ -194,6 +209,38 @@ func (c *ClusterImpl) SendClusterMessage(msg *model.ClusterMessage) {
 
 func (c *ClusterImpl) SendClusterMessageToNode(nodeID string, msg *model.ClusterMessage) error {
 	mlog.Info("CLUSTER: SendClusterMessageToNode")
+
+	if c.list == nil {
+		mlog.Info("CLUSTER: SendClusterMessageToNode no cluster")
+		return nil
+	}
+
+	bytes, err := json.Marshal(*msg)
+	if err != nil {
+		mlog.Info(fmt.Sprintf("CLUSTER: SendClusterMessage error %s", err))
+		return err
+	}
+
+	for _, node := range c.list.Members() {
+
+		if nodeId(node) != nodeID {
+			continue
+		}
+
+		if msg.SendType == model.ClusterSendReliable {
+			err = c.list.SendReliable(node, bytes)
+		} else {
+			err = c.list.SendBestEffort(node, bytes)
+		}
+
+		if err != nil {
+			mlog.Info(fmt.Sprintf("CLUSTER: SendClusterMessage %s to %s error %s", string(bytes), nodeId(node), err))
+			return err
+		} else {
+			mlog.Info(fmt.Sprintf("CLUSTER: SendClusterMessage %s to %s", string(bytes), nodeId(node)))
+		}
+
+	}
 	return nil
 }
 
